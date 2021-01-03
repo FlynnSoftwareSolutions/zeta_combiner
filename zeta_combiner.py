@@ -8,7 +8,7 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20191201"
+__date__ = "20210103"
 
 from copy import deepcopy
 from os import path, listdir
@@ -31,18 +31,19 @@ scriptdir = currentFile[:currentFile.rfind('/')+1]
 
 binSize = 1 # bin size in mV if rebinning, 0 to not rebin
 # GET FIRST CSV FILES OF EACH EXPERIMENT IN SCRIPT DIRECTORY
-filePathGroups = [scriptdir+f for f in listdir(scriptdir) if '-1.csv' in f]
+fileGroupPaths = [f'{scriptdir}{f}'
+                for f in listdir(scriptdir) if '-1.csv' in f]
 # IF ANY VALID CSV FILES FOUND
-if len(filePathGroups):
+if len(fileGroupPaths):
     # PROCESS ONE GROUP AT A TIME
-    for filePathGroup in filePathGroups:
+    for fileGroupPath in fileGroupPaths:
         # GET EXPERIMENT NAME WITHOUT COUNTER OR FILE EXTENSION
-        expName = filePathGroup.replace('-1.csv','').replace(scriptdir,'')
+        expName = fileGroupPath.replace('-1.csv','').replace(scriptdir,'')
         # COUNT HOW MANY FILES HAVE SAME BASE EXPERIMENT NAME
         numFiles = 0
-        while path.isfile(filePathGroup.replace(
-                '-1.csv',
-                '-'+str(numFiles+1)+'.csv')):
+        while path.isfile(fileGroupPath.replace(
+                          '-1.csv',
+                          f'-{numFiles + 1}.csv')):
             numFiles += 1
         if numFiles:
             # COUNT THROUGH FILES IN GROUP, ALL OF WHICH ARE REPEAT
@@ -50,10 +51,7 @@ if len(filePathGroups):
             for i in range(numFiles):
                 # LOAD CSV TO PANDAS DATAFRAME
                 df = pd.read_csv(
-                        filePathGroup.replace(
-                            '-1.csv',
-                            '-'+str(i+1) + '.csv'
-                            ),
+                        fileGroupPath.replace('-1.csv',f'-{i + 1}.csv'),
                         sep=',',
                         )
                 # PROCESS COLUMNS OF PANDAS DATAFRAME
