@@ -31,19 +31,17 @@ scriptdir = currentFile[:currentFile.rfind('/')+1]
 
 binSize = 1 # bin size in mV if rebinning, 0 to not rebin
 # GET FIRST CSV FILES OF EACH EXPERIMENT IN SCRIPT DIRECTORY
-fileGroupPaths = [f'{scriptdir}{f}'
-                for f in listdir(scriptdir) if '-1.csv' in f]
+fileGroupPaths = [f'{scriptdir}{f.replace("1.csv","")}'
+                for f in listdir(scriptdir) if '-1.csv' in f or '_1.csv' in f]
 # IF ANY VALID CSV FILES FOUND
 if len(fileGroupPaths):
     # PROCESS ONE GROUP AT A TIME
     for fileGroupPath in fileGroupPaths:
         # GET EXPERIMENT NAME WITHOUT COUNTER OR FILE EXTENSION
-        expName = fileGroupPath.replace('-1.csv','').replace(scriptdir,'')
+        expName = fileGroupPath.replace(scriptdir,'')[:-1]
         # COUNT HOW MANY FILES HAVE SAME BASE EXPERIMENT NAME
         numFiles = 0
-        while path.isfile(fileGroupPath.replace(
-                          '-1.csv',
-                          f'-{numFiles + 1}.csv')):
+        while path.isfile(f'{fileGroupPath}{numFiles + 1}.csv'):
             numFiles += 1
         if numFiles:
             # COUNT THROUGH FILES IN GROUP, ALL OF WHICH ARE REPEAT
@@ -51,7 +49,7 @@ if len(fileGroupPaths):
             for i in range(numFiles):
                 # LOAD CSV TO PANDAS DATAFRAME
                 df = pd.read_csv(
-                        fileGroupPath.replace('-1.csv',f'-{i + 1}.csv'),
+                        f'{fileGroupPath}{i + 1}.csv',
                         sep=',',
                         )
                 # PROCESS COLUMNS OF PANDAS DATAFRAME

@@ -9,7 +9,7 @@ Zeta_combiner is a Python script that combines replicate electrophoretic mobilit
 - Pandas 0.25.3+
 - XlsxWriter 1.2.6+
 # How to use zeta_combiner
-Zeta_combiner is run by copying zeta_combiner into a folder containing one or more sets of replicate data files that were manually exported from the Brookhaven software in .csv format with identical names except for their endings (Sample-1.csv, Sample-2.csv, etc.), then running the script from the terminal with the following syntax
+Zeta_combiner is run by copying zeta_combiner into a folder containing one or more sets of replicate data files that were manually exported from the Brookhaven software in .csv format with identical names except for their endings (Sample-1.csv, Sample-2.csv, etc. using dashes or underscores before the replicate number), then running the script from the terminal with the following syntax
 
 `python C:/example/path/to/data/zeta_combiner.py`
 
