@@ -15,7 +15,7 @@ Zeta_combiner is run by copying zeta_combiner into a folder containing one or mo
 
 For each group of samples, zeta_combiner will export
 
-- an .xlsx file for each sample containing the raw and combined zeta potential distributions of that sample's replicate data files
+- an .xlsx workbook summarizing the entire folder of data with a worksheet for each sample containing the raw and combined zeta potential distributions of that sample's replicate data files
 - an .svg vectorized image of a plot of the combined zeta potential distribution.
 # How zeta_combiner works
 Zeta_combiner first identifies all of the unique zeta potential (x-axis) values that appear in at least one of the replicate data files. The Brookhaven NanoBrook Omni does not use a fixed bin size on the x-axis, so every replicate file has a different set of x-axis values. Zeta_combiner then calculates the mean, sample standard deviation, and number of power (y-axis) values that were collected at each unique x-axis value. Due to the variable bin size of the x-axes from each replicate data file and the fact that each replicate data file is normalized to a mode of 1.0 power, the mean zeta potential distribution can have large local discontinuities that can be reduced with a simple 1-D box blur / moving average. This smoothing can be adjusted in the source code through `nSmooths` (default 2) and `w` (default 1% of x-axis).
