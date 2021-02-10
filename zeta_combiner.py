@@ -8,7 +8,7 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20210103"
+__date__ = "20210210"
 
 from copy import deepcopy
 from os import path, listdir
@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
-# GET DIRECTORY CONTAINING THIS SCRIPT
+# Get directory containing this script
 try:
     currentFile = path.realpath(__file__).replace('\\','/')
 except:
@@ -30,50 +30,50 @@ currentFile = currentFile.replace('\\','/')
 scriptdir = currentFile[:currentFile.rfind('/')+1]
 
 binSize = 1 # bin size in mV if rebinning, 0 to not rebin
-# GET FIRST CSV FILES OF EACH EXPERIMENT IN SCRIPT DIRECTORY
+# Get first csv files of each experiment in script directory
 fileGroupPaths = [f'{scriptdir}{f.replace("1.csv","")}'
                 for f in listdir(scriptdir) if '-1.csv' in f or '_1.csv' in f]
-# IF ANY VALID CSV FILES FOUND
+# If any valid csv files found
 if len(fileGroupPaths):
-    # PROCESS ONE GROUP AT A TIME
+    # Process one group at a time
     for fileGroupPath in fileGroupPaths:
-        # GET EXPERIMENT NAME WITHOUT COUNTER OR FILE EXTENSION
+        # Get experiment name without counter or file extension
         expName = fileGroupPath.replace(scriptdir,'')[:-1]
-        # COUNT HOW MANY FILES HAVE SAME BASE EXPERIMENT NAME
+        # Count how many files have same base experiment name
         numFiles = 0
         while path.isfile(f'{fileGroupPath}{numFiles + 1}.csv'):
             numFiles += 1
         if numFiles:
-            # COUNT THROUGH FILES IN GROUP, ALL OF WHICH ARE REPEAT
-            # MEASUREMENTS OF THE SAME EXPERIMENT
+            # Count through files in group, all of which are repeat
+            # measurements of the same experiment
             for i in range(numFiles):
-                # LOAD CSV TO PANDAS DATAFRAME
+                # Load csv to pandas dataframe
                 df = pd.read_csv(
                         f'{fileGroupPath}{i + 1}.csv',
                         sep=',',
                         )
-                # PROCESS COLUMNS OF PANDAS DATAFRAME
+                # Process columns of pandas dataframe
                 rawZeta = df['Zeta Potential']
                 rawPower = df['Power']
-                # DETERMINE NUMBER OF ZETA POTENTIALS ON X AXIS
-                # THIS NUMBER SHOULD BE CONSTANT BETWEEN RUNS
+                # Determine number of zeta potentials on x axis
+                # This number should be constant between runs
                 nPoints = len(rawZeta)
-                # IF FIRST FILE
+                # If first file
                 if i == 0:
-                    # CREATE ARRAYS TO STORE MULTIPLE FILES OF DATA IN COLUMNS
+                    # Create arrays to store multiple files of data in columns
                     rawZetas = np.zeros((nPoints, numFiles), dtype=np.float64)
                     rawPowers = np.zeros((nPoints, numFiles), dtype=np.float64)
-                # STORE CURRENT FILE DATA IN APPROPRIATE COLUMN
+                # Store current file data in appropriate column
                 rawZetas[:,i] = rawZeta
                 rawPowers[:,i] = rawPower
-            # SORT ALL FILES' ZETA POTENTIAL AXES AND PRESERVE PAIRING OF
-            # RELATIVE POWER VALUES WITH THEIR CORRESPONDING ZETA POTENTIAL
-            # VALUES
+            # Sort all files' zeta potential axes and preserve pairing of
+            # relative power values with their corresponding zeta potential
+            # values
             zetasSortedTuple, powerSortedTuple = zip(*sorted(zip(
                 rawZetas.flatten(),
                 rawPowers.flatten())))
             if binSize:
-                # BINNED ARRAY MODE
+                # Binned array mode
                 zetas = np.arange(
                         zetasSortedTuple[0],
                         zetasSortedTuple[-1],
@@ -81,12 +81,12 @@ if len(fileGroupPaths):
                         dtype=np.float64,
                         )
             else:
-                # ALL UNIQUE ZETA VALUES MODE
-                # FIND ALL UNIQUE ZETA POTENTIAL VALUES COLLECTED
-                # (THEY VARY BETWEEN RUNS)
+                # All unique zeta values mode
+                # find all unique zeta potential values collected
+                # (they vary between runs)
                 zetas = np.unique(zetasSortedTuple)
-            # CALCULATE NUMBER OF BINS OR NUMBER OF
-            # UNIQUE ZETA POTENTIAL VALUES IN DATA SET
+            # Calculate number of bins or number of
+            # unique zeta potential values in data set
             nBins = len(zetas)
             powers = np.zeros([nBins], dtype=np.float64)
             powerStd = deepcopy(powers)
@@ -107,8 +107,8 @@ if len(fileGroupPaths):
                 powerStd[j] = np.std(np.take(
                     powerSortedTuple,inds)) if len(inds) > 1 else 0
                 powerN[j] = len(inds)
-            # SMOOTHING nSmooths TIMES USING MOVING
-            # AVERAGE 1% OF DATA SET IN SIZE
+            # Smoothing nSmooths times using moving
+            # average 1% of data set in size
             nSmooths = 2
             powerSmoothed = deepcopy(powers)
             w = int(nBins * 0.01)
@@ -124,7 +124,7 @@ if len(fileGroupPaths):
                             mode='same',
                             ) / int(0.01 * nBins)
             powerSmoothed = powerSmoothed/np.max(powerSmoothed)
-            # PLOTTING SMOOTHED DATA AND SAVING AS SVG
+            # Plotting smoothed data and saving as svg
             if binSize:
                 plt.plot(zetas,powerSmoothed)
             else:
@@ -135,7 +135,7 @@ if len(fileGroupPaths):
             plt.savefig(expName+'.svg')
             plt.cla()
            
-            # SAVING SMOOTHED AND RAW DATA AS XLSX
+            # Saving smoothed and raw data as xlsx
             headers = [expName+str(i) for i in range(1,numFiles+1)]
             writer = pd.ExcelWriter(
                 scriptdir+expName+'.xlsx', engine='xlsxwriter',)
@@ -178,7 +178,7 @@ if len(fileGroupPaths):
                 index=False,
                 )
            
-            # PRODUCING SUMMARY LINE PLOT IN EXCEL
+            # Producing summary line plot in excel
             fontsize = 20
             chart = writer.book.add_chart({'type': 'scatter',
                                            'subtype':'straight',})
@@ -205,7 +205,7 @@ if len(fileGroupPaths):
             chart.set_size({'width': 1280, 'height': 720})
             writer.sheets['Summary'].insert_chart('F2', chart)
 
-            # PRODUCING ALL LINES ON ONE PLOT IN EXCEL
+            # Producing all lines on one plot in excel
             chart = writer.book.add_chart({
                 'type': 'scatter',
                 'subtype':'straight',
