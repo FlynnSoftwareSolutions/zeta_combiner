@@ -8,9 +8,10 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20210210"
+__date__ = "20210308"
 
 import os
+import sys
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -21,7 +22,7 @@ def processFolder(d):
     # Isolate name of deepest folder in full path directory d
     endFolderName = d[d.rfind('/') + 1:]
     # Get first csv files of each experiment in script directory
-    fileGroupPaths = [f'{scriptdir}{f.replace("1.csv","")}'
+    fileGroupPaths = [f'{d}/{f.replace("1.csv","")}'
                 for f in os.listdir(scriptdir) if '-1.csv' in f or '_1.csv' in f]
     nFileGroups = len(fileGroupPaths)
     # If any valid csv files found
@@ -319,17 +320,26 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
         return nBins
 
 if __name__ == "__main__":
-    # Get directory containing this script
-    try:
-        currentFile = os.path.realpath(__file__).replace('\\','/')
-    except:
-        currentFile = input(
-            ('Python needs your help determining the location of this script\n'
-            'Please copy the full filepath of this Python script from above\n'
-            'then paste it here using right-click. Then press Enter to begin\n'
-            ))
-    currentFile = currentFile.replace('\\','/')
-    scriptdir = currentFile[:currentFile.rfind('/')+1]
+    if len(sys.argv) == 2:
+        scriptdir = sys.argv[1]
+        scriptdir = scriptdir.replace('\\','/')
+        scriptdir = scriptdir if scriptdir[-1] == '/' else f'{scriptdir}/'
+    elif len(sys.argv) == 1:
+        # Get directory containing this script
+        try:
+            currentFile = os.path.realpath(__file__).replace('\\','/')
+        except:
+            currentFile = input(
+                ('Python needs help determining the location of this script\n'
+                'Please copy the full filepath of this Python script\n'
+                'then paste it here using right-click\n'
+                'Then press Enter to begin.\n'))
+        currentFile = currentFile.replace('\\','/')
+        scriptdir = currentFile[:currentFile.rfind('/')]
+    else:
+        print('Only one command line argument may be provided: '
+              'the full path to the directory containing the'
+              'CSV files to be processed')
 
     # Required globals
     # Font size on graphs
