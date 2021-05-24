@@ -1,5 +1,5 @@
 # What is zeta_combiner?
-Zeta_combiner is a Python script that combines replicate electrophoretic mobility / ELS / PALS / zeta potential distributions performed by a Brookhaven NanoBrook Omni. This was created because the Brookhaven NanoBrook Omni instrument/data processing software I had access to could not export all replicate scans of a sample into one file except as a difficult-to-digitize PDF report, but could export each replicate scan as a separate .csv file.
+Zeta_combiner is a Python script that combines replicate electrophoretic mobility / ELS / PALS / zeta potential distributions performed by a Brookhaven NanoBrook Omni. This was created because the Brookhaven NanoBrook Omni instrument/data processing software I had access to could not export all replicate scans of a sample into one file except as a difficult-to-digitize PDF report, but could export each replicate scan as a separate .csv or .xls file.
 # Requirements
 
 - Python 3.8+
@@ -9,7 +9,7 @@ Zeta_combiner is a Python script that combines replicate electrophoretic mobilit
 - Pandas 0.25.3+
 - XlsxWriter 1.2.6+
 # How to use zeta_combiner
-Zeta_combiner is run by copying zeta_combiner into a folder containing one or more sets of replicate data files that were manually exported from the Brookhaven software in .csv format with identical names except for their endings (Sample-1.csv, Sample-2.csv, etc. using dashes or underscores before the replicate number), then running the script from the terminal with the following syntax
+Zeta_combiner is run by copying zeta_combiner into a folder containing one or more sets of replicate data files that were manually exported from the Brookhaven software in .csv or .xls format with identical names except for their endings (Sample-1.csv, Sample-2.csv, etc. using dashes or underscores before the replicate number), then running the script from the terminal with the following syntax
 
 `python zeta_combiner.py C:/example/path/to/data`
 

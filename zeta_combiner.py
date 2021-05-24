@@ -8,7 +8,7 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20210308"
+__date__ = "20210524"
 
 import os
 import sys
@@ -21,9 +21,12 @@ def processFolder(d):
     d = d[:-1] if d[-1] == '/' else d
     # Isolate name of deepest folder in full path directory d
     endFolderName = d[d.rfind('/') + 1:]
-    # Get first csv files of each experiment in script directory
-    fileGroupPaths = [f'{d}/{f.replace("1.csv","")}'
-                for f in os.listdir(scriptdir) if '-1.csv' in f or '_1.csv' in f]
+    # Get first data files of each experiment in script directory
+    fileGroupPaths = [f'{d}/{f.replace("1" + extension, "")}'
+                for f in os.listdir(scriptdir)
+                if f'-1{extension}' in f
+                or f'_1{extension}' in f
+                or f'Scan1{extension}' in f]
     nFileGroups = len(fileGroupPaths)
     # If any valid csv files found
     if nFileGroups:
@@ -105,16 +108,19 @@ def processFolder(d):
                            n + 1, 4 * fileGroupNumber + 23]})
         writer.close()
     else:
-        print('No CSV file groups found')
+        print(f'No {extension} file groups found')
 
 def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
     # Count how many files have same base experiment name
     nFiles = 0
-    while os.path.isfile(f'{fileGroupPath}{nFiles+1}.csv'):
+    while os.path.isfile(f'{fileGroupPath}{nFiles+1}{extension}'):
         nFiles += 1
     if nFiles:
-        # Load csv to pandas dataframe
-        df = pd.read_csv(f'{fileGroupPath}1.csv', sep=',')
+        # Load data file to pandas dataframe
+        if extension.startswith('.xls'):
+            df = pd.read_excel(f'{fileGroupPath}1{extension}')
+        elif extension == '.csv':
+            df = pd.read_csv(f'{fileGroupPath}1{extension}', sep=',')
         # Process columns of pandas dataframe
         rawZeta = df['Zeta Potential'].values
         rawPower = df['Power'].values
@@ -130,8 +136,11 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
         # measurements of the same experiment
         for i, rawZeta, rawPower in zip(
                 range(2, nFiles + 1), rawZetas[1:], rawPowers[1:]):
-            # Load csv to pandas dataframe
-            df = pd.read_csv(f'{fileGroupPath}{i}.csv', sep=',')
+            # Load data file to pandas dataframe
+            if extension.startswith('.xls'):
+                df = pd.read_excel(f'{fileGroupPath}{i}{extension}')
+            elif extension == '.csv':
+                df = pd.read_csv(f'{fileGroupPath}{i}{extension}', sep=',')
             # Process columns of pandas dataframe
             rawZeta[:] = df['Zeta Potential'].values
             rawPower[:] = df['Power'].values
@@ -339,12 +348,12 @@ if __name__ == "__main__":
     else:
         print('Only one command line argument may be provided: '
               'the full path to the directory containing the'
-              'CSV files to be processed')
+              f'{extension} files to be processed')
 
     # Required globals
     # Font size on graphs
     fontsize = 20
     # Set binSize in mV if rebinning is desired, 0 to disable rebinning
     binSize = 1
-
+    extension = '.csv'
     processFolder(scriptdir)
