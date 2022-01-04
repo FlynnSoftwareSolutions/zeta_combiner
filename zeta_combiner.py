@@ -8,7 +8,7 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20210524"
+__date__ = "20220104"
 
 import os
 import sys
@@ -45,11 +45,16 @@ def processFolder(d):
         df = pd.DataFrame([spacedNames])
         df.to_excel(writer,
                     sheet_name='Summary',
-                    startcol=22,
+                    startcol=27,
                     header=False,
                     index=False,
                     )
-        df = pd.DataFrame(["Sample", "Mode Zeta Potential [mV]"]).T
+        df = pd.DataFrame(["Sample",
+                           "Mode Zeta Potential [mV]",
+                           "Mean of non-zero modes [mV]",
+                           "Stdev of non-zero modes [mV]",
+                           "N",
+                           ]).T
         df.to_excel(writer,
                     sheet_name='Summary',
                     header=False,
@@ -91,26 +96,32 @@ def processFolder(d):
             'width': 1280,
             'height': 720,
             })
-        writer.sheets['Summary'].insert_chart('C2', summaryChart)
+        writer.sheets['Summary'].insert_chart('G2', summaryChart)
 
         # Process each group of CSV files
+        totalFilesProcessed = 0
         for fileGroupNumber, expName, fileGroupPath in \
                 zip(range(nFileGroups), expNames, fileGroupPaths):
-            n = processFileGroup(writer, fileGroupNumber,
-                                 expName, fileGroupPath)
+            nFiles, nBins = processFileGroup(
+                writer, fileGroupNumber, totalFilesProcessed,
+                nFileGroups, expName, fileGroupPath)
             # Produce line on chart in Summary sheet
             summaryChart.add_series({
-                'name': ['Summary', 0, 4 * fileGroupNumber + 22,
-                         0, 4 * fileGroupNumber + 22],
-                'categories': ['Summary', 2, 4 * fileGroupNumber + 22,
-                               n + 1, 4 * fileGroupNumber + 22],
-                'values': ['Summary', 2, 4 * fileGroupNumber + 23,
-                           n + 1, 4 * fileGroupNumber + 23]})
+                'name': ['Summary', 0, 4 * fileGroupNumber + 27,
+                         0, 4 * fileGroupNumber + 27],
+                'categories': ['Summary', 2, 4 * fileGroupNumber + 27,
+                               nBins + 1, 4 * fileGroupNumber + 27],
+                'values': ['Summary', 2, 4 * fileGroupNumber + 28,
+                           nBins + 1, 4 * fileGroupNumber + 28]})
+            # Update totalFilesProcessed for calculating row for
+            # individual file statistics
+            totalFilesProcessed += nFiles
         writer.close()
     else:
         print(f'No {extension} file groups found')
 
-def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
+def processFileGroup(writer, fileGroupNumber, totalFilesProcessed,
+        nFileGroups, expName, fileGroupPath):
     # Count how many files have same base experiment name
     nFiles = 0
     while os.path.isfile(f'{fileGroupPath}{nFiles+1}{extension}'):
@@ -130,20 +141,23 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
         # Create arrays to store multiple files of data in columns
         rawZetas = np.zeros((nFiles, nPoints), dtype=np.float64)
         rawPowers = np.zeros((nFiles, nPoints), dtype=np.float64)
+        modes = np.zeros((nFiles), dtype=np.float64)
         rawZetas[0] = rawZeta
         rawPowers[0] = rawPower
         # Count through files in group, all of which are repeat
         # measurements of the same experiment
         for i, rawZeta, rawPower in zip(
-                range(2, nFiles + 1), rawZetas[1:], rawPowers[1:]):
+                range(nFiles), rawZetas, rawPowers):
             # Load data file to pandas dataframe
             if extension.startswith('.xls'):
-                df = pd.read_excel(f'{fileGroupPath}{i}{extension}')
+                df = pd.read_excel(f'{fileGroupPath}{i + 1}{extension}')
             elif extension == '.csv':
-                df = pd.read_csv(f'{fileGroupPath}{i}{extension}', sep=',')
+                df = pd.read_csv(f'{fileGroupPath}{i + 1}{extension}', sep=',')
             # Process columns of pandas dataframe
             rawZeta[:] = df['Zeta Potential'].values
             rawPower[:] = df['Power'].values
+            # For each file, find zeta potential value where power is highest
+            modes[i] = rawZeta[np.argmax(rawPower)]
         # Sort all files' zeta potential axes and preserve pairing of 
         # relative power values with their corresponding zeta potential values
         z = rawZetas.flatten()
@@ -260,10 +274,10 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
                 })
         chart.add_series({
             'name': expName,
-            'categories': ['Summary', 2, 4 * fileGroupNumber + 22,
-                           nBins + 1, 4 * fileGroupNumber + 22],
-            'values': ['Summary', 2, 4 * fileGroupNumber + 23,
-                       nBins + 1, 4 * fileGroupNumber + 23],
+            'categories': ['Summary', 2, 4 * fileGroupNumber + 27,
+                           nBins + 1, 4 * fileGroupNumber + 27],
+            'values': ['Summary', 2, 4 * fileGroupNumber + 28,
+                       nBins + 1, 4 * fileGroupNumber + 28],
             'line': {'color': 'red'},
             })
         chart.set_title({'name': expName, 'name_font': {'size':fontsize},})
@@ -306,7 +320,7 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
         df.to_excel(writer,
                     sheet_name='Summary',
                     startrow=1,
-                    startcol=4 * fileGroupNumber + 22,
+                    startcol=4 * fileGroupNumber + 27,
                     header=['Zeta Potential [mV]',
                             'Relative Power',
                             'Stdev',
@@ -315,7 +329,7 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
                     index = False,
                     )
 
-        # Fill out table of mode zeta values
+        # Fill out table of mode zeta values for each file group
         df = pd.DataFrame([
             expName,
             np.mean(zetas[np.where(powerSmoothed == 1.0)[0]])
@@ -326,7 +340,34 @@ def processFileGroup(writer, fileGroupNumber, expName, fileGroupPath):
                     header=False,
                     index=False,
                     )
-        return nBins
+        
+        # Calculate average and standard deviation of all
+        # files with non-zero modes in each file group
+        includedModes = modes[np.where(modes!=0.0)]
+        df = pd.DataFrame([
+            np.mean(includedModes),
+            np.std(includedModes, ddof=1),
+            len(includedModes)
+            ]).T
+        df.to_excel(writer,
+                    sheet_name='Summary',
+                    startrow=fileGroupNumber + 1,
+                    startcol=2,
+                    header=False,
+                    index=False,
+                    )
+        # Fill out table of mode zeta values from each individual file
+        df = pd.DataFrame([
+            [f"{expName}-{i + 1}" for i in range(nFiles)],
+            modes,
+            ]).T
+        df.to_excel(writer,
+                    sheet_name='Summary',
+                    startrow=nFileGroups + totalFilesProcessed + 1,
+                    header=False,
+                    index=False,
+                    )
+        return nFiles, nBins
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
