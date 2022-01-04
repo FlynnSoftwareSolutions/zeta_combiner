@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
-def processFolder(d):
+def processFolder(d: str):
     # Remove trailing slash on directory d
     d = d[:-1] if d[-1] == '/' else d
     # Isolate name of deepest folder in full path directory d
@@ -120,8 +120,10 @@ def processFolder(d):
     else:
         print(f'No {extension} file groups found')
 
-def processFileGroup(writer, fileGroupNumber, totalFilesProcessed,
-        nFileGroups, expName, fileGroupPath):
+def processFileGroup(
+        writer: pd.ExcelWriter, fileGroupNumber: int,
+        totalFilesProcessed: int, nFileGroups: int,
+        expName: str, fileGroupPath: str):
     # Count how many files have same base experiment name
     nFiles = 0
     while os.path.isfile(f'{fileGroupPath}{nFiles+1}{extension}'):
