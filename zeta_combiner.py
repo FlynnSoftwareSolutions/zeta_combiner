@@ -373,20 +373,11 @@ def processFileGroup(
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
-        scriptdir = sys.argv[1]
-        scriptdir = scriptdir.replace('\\','/')
+        scriptdir = sys.argv[1].replace('\\','/')
         scriptdir = scriptdir if scriptdir[-1] == '/' else f'{scriptdir}/'
     elif len(sys.argv) == 1:
         # Get directory containing this script
-        try:
-            currentFile = os.path.realpath(__file__).replace('\\','/')
-        except:
-            currentFile = input(
-                ('Python needs help determining the location of this script\n'
-                'Please copy the full filepath of this Python script\n'
-                'then paste it here using right-click\n'
-                'Then press Enter to begin.\n'))
-        currentFile = currentFile.replace('\\','/')
+        currentFile = os.path.realpath(__file__).replace('\\','/')
         scriptdir = currentFile[:currentFile.rfind('/')]
     else:
         print('Only one command line argument may be provided: '
