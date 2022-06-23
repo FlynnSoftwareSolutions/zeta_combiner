@@ -75,8 +75,8 @@ def processFolder(d: str):
             'name_font': {'size': fontsize},
             'num_font': {'size': fontsize},
             'major_gridlines': {'visible': False},
-            'min': -150,
-            'max': 150,
+            'min': minZeta,
+            'max': maxZeta,
             'major_unit': 25,
             'label_position': 'low',
             })
@@ -171,8 +171,8 @@ def processFileGroup(
         if binSize:
             # Binned array mode
             zetas = np.arange(
-                    sortedZetas[0],
-                    sortedZetas[nFiles * nPoints - 1],
+                    minZeta,
+                    maxZeta,
                     binSize,
                     dtype=np.float64,
                     )
@@ -181,6 +181,7 @@ def processFileGroup(
             # Find all unique zeta potential values collected
             # (they vary between runs)
             zetas = np.unique(sortedZetas)
+            zetas = zetas[(zetas >= minZeta) & (zetas <= maxZeta)]
         # Calculate number of bins or number of
         # unique zeta potential values in data set
         nBins = len(zetas)
@@ -191,20 +192,24 @@ def processFileGroup(
         if binSize:
             inds = [np.argmax(sortedZetas >= zeta - halfBinSize)
                     for zeta in zetas]
-            inds += [nFiles * nPoints]
+            inds.append(nFiles * nPoints
+                        if sortedZetas[-1] < maxZeta - halfBinSize
+                        else np.argmax(
+                            (sortedZetas >= maxZeta - halfBinSize)
+                            & (sortedZetas <= maxZeta + halfBinSize)
+                            )
+                        )
         else:
-            # Untested
             inds = [np.argmax(sortedZetas == zeta) for zeta in zetas]
-        
         for i, startInd, stopInd in \
                 zip(range(nBins), inds[:nFiles * nPoints - 1], inds[1:]):
             powerN = stopInd - startInd
             powerNs[i] = powerN
             yVals = sortedPowers[startInd:stopInd]
-            powers[i] = np.mean(yVals) if powerN else 0
+            powers[i] = np.mean(yVals) if powerN else np.nan
             powerStdevs[i] = np.std(yVals) if powerN > 1 else 0
         # Smooth nSmooths times using moving average 1% of data set in size
-        nSmooths = 2
+        nSmooths = 0
         powerSmoothed = np.copy(powers)
         w = int(nBins * 0.01)
         if w:
@@ -215,7 +220,7 @@ def processFileGroup(
                         box,
                         mode='same',
                         ) / w
-        powerSmoothed /= np.max(powerSmoothed)
+        powerSmoothed /= np.max(np.nan_to_num(powerSmoothed))
 
         # Plot smoothed data and save as svg
         if binSize:
@@ -289,8 +294,8 @@ def processFileGroup(
             'name_font': {'size': fontsize},
             'num_font': {'size': fontsize},
             'major_gridlines': {'visible': False},
-            'min': -150,
-            'max': 150,
+            'min': minZeta,
+            'max': maxZeta,
             'major_unit': 25,
             'label_position': 'low',
             })
@@ -390,5 +395,8 @@ if __name__ == "__main__":
     fontsize = 20
     # Set binSize in mV if rebinning is desired, 0 to disable rebinning
     binSize = 1
+    # Set min and max zeta values to include in the exported file
+    minZeta = -90
+    maxZeta = 90
     extension = '.csv'
     processFolder(scriptdir)
