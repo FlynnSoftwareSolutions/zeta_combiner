@@ -8,7 +8,7 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20220104"
+__date__ = "20220623"
 
 import os
 import sys
@@ -267,7 +267,8 @@ def processFileGroup(
             })
         for i in range(nFiles):
             chart.add_series({
-                'name': f'{expName}-{i}',
+                'name': [f"{fileGroupNumber + 1}", 1,
+                         nFiles + i + 2, 1, nFiles + i + 2],
                 'categories': [f"{fileGroupNumber + 1}", 2,
                                i, nBins + 1, i],
                 'values': [f"{fileGroupNumber + 1}", 2, nFiles + i + 1,
@@ -275,7 +276,7 @@ def processFileGroup(
                 'line': {'color': 'blue'},
                 })
         chart.add_series({
-            'name': expName,
+            'name': ['Summary', 1, 4 * fileGroupNumber + 27, 1, 4 * fileGroupNumber + 27],
             'categories': ['Summary', 2, 4 * fileGroupNumber + 27,
                            nBins + 1, 4 * fileGroupNumber + 27],
             'values': ['Summary', 2, 4 * fileGroupNumber + 28,
