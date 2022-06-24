@@ -24,9 +24,8 @@ def processFolder(d: str):
     # Get first data files of each experiment in script directory
     fileGroupPaths = [f'{d}/{f.replace("1" + extension, "")}'
                 for f in os.listdir(scriptdir)
-                if f'-1{extension}' in f
-                or f'_1{extension}' in f
-                or f'Scan1{extension}' in f]
+                if f.endswith(f'1{extension}')
+                ]
     nFileGroups = len(fileGroupPaths)
     # If any valid csv files found
     if nFileGroups:
