@@ -8,7 +8,7 @@ because the Malvern database software cannot export all repeat scans of the
 same sample into one file except as a PDF report.
 '''
 __author__ = "Michael Flynn"
-__date__ = "20220623"
+__date__ = "20220712"
 
 import os
 import sys
@@ -133,22 +133,30 @@ def processFileGroup(
             df = pd.read_excel(f'{fileGroupPath}1{extension}')
         elif extension == '.csv':
             df = pd.read_csv(f'{fileGroupPath}1{extension}', sep=',')
-        # Process columns of pandas dataframe
+        # Process column of pandas dataframe
         rawZeta = df['Zeta Potential'].values
-        rawPower = df['Power'].values
         # Determine number of zeta potentials on x axis
         # This number should be constant between runs
         nPoints = len(rawZeta)
+        # Create array of x values to interpolate each run onto
+        zetas = np.arange(
+                minZeta,
+                maxZeta,
+                binSize,
+                dtype=np.float64,
+                )
+        nBins = len(zetas)
         # Create arrays to store multiple files of data in columns
-        rawZetas = np.zeros((nFiles, nPoints), dtype=np.float64)
-        rawPowers = np.zeros((nFiles, nPoints), dtype=np.float64)
-        modes = np.zeros((nFiles), dtype=np.float64)
+        rawZetas = np.empty((nFiles, nPoints), dtype=np.float64)
+        rawPowers = np.empty((nFiles, nPoints), dtype=np.float64)
+        powers = np.empty((nFiles, nBins), dtype=np.float64)
+        powerNs = np.empty((nFiles, nBins), dtype=np.float64)
+        modes = np.empty((nFiles), dtype=np.float64)
         rawZetas[0] = rawZeta
-        rawPowers[0] = rawPower
         # Count through files in group, all of which are repeat
-        # measurements of the same experiment
-        for i, rawZeta, rawPower in zip(
-                range(nFiles), rawZetas, rawPowers):
+        # measurements of the same sample
+        for i, rawZeta, rawPower, power, powerN in zip(
+                range(nFiles), rawZetas, rawPowers, powers, powerNs):
             # Load data file to pandas dataframe
             if extension.startswith('.xls'):
                 df = pd.read_excel(f'{fileGroupPath}{i + 1}{extension}')
@@ -159,73 +167,15 @@ def processFileGroup(
             rawPower[:] = df['Power'].values
             # For each file, find zeta potential value where power is highest
             modes[i] = rawZeta[np.argmax(rawPower)]
-        # Sort all files' zeta potential axes and preserve pairing of 
-        # relative power values with their corresponding zeta potential values
-        z = rawZetas.flatten()
-        p = rawPowers.flatten()
-        indOrder = z.argsort()
-        sortedZetas = z[indOrder]
-        sortedPowers = p[indOrder]
-        del z, p
-        if binSize:
-            # Binned array mode
-            zetas = np.arange(
-                    minZeta,
-                    maxZeta,
-                    binSize,
-                    dtype=np.float64,
-                    )
-        else:
-            # All unique zeta values mode
-            # Find all unique zeta potential values collected
-            # (they vary between runs)
-            zetas = np.unique(sortedZetas)
-            zetas = zetas[(zetas >= minZeta) & (zetas <= maxZeta)]
-        # Calculate number of bins or number of
-        # unique zeta potential values in data set
-        nBins = len(zetas)
-        powers = np.zeros(nBins, dtype=np.float64)
-        powerStdevs = np.zeros(nBins, dtype=np.float64)
-        powerNs = np.zeros(nBins, dtype=np.float64)
-        halfBinSize = 0.5 * binSize
-        if binSize:
-            inds = [np.argmax(sortedZetas >= zeta - halfBinSize)
-                    for zeta in zetas]
-            inds.append(nFiles * nPoints
-                        if sortedZetas[-1] < maxZeta - halfBinSize
-                        else np.argmax(
-                            (sortedZetas >= maxZeta - halfBinSize)
-                            & (sortedZetas <= maxZeta + halfBinSize)
-                            )
-                        )
-        else:
-            inds = [np.argmax(sortedZetas == zeta) for zeta in zetas]
-        for i, startInd, stopInd in \
-                zip(range(nBins), inds[:nFiles * nPoints - 1], inds[1:]):
-            powerN = stopInd - startInd
-            powerNs[i] = powerN
-            yVals = sortedPowers[startInd:stopInd]
-            powers[i] = np.mean(yVals) if powerN else np.nan
-            powerStdevs[i] = np.std(yVals) if powerN > 1 else 0
-        # Smooth nSmooths times using moving average 1% of data set in size
-        nSmooths = 0
-        powerSmoothed = np.copy(powers)
-        w = int(nBins * 0.01)
-        if w:
-            box = np.ones(w, dtype=np.float64)
-            for _ in range(nSmooths):
-                powerSmoothed = np.convolve(
-                        powerSmoothed,
-                        box,
-                        mode='same',
-                        ) / w
-        powerSmoothed /= np.max(np.nan_to_num(powerSmoothed))
+            # Interpolate power values onto same x axis (zetas)
+            power[:], powerN[:] = interpolate(rawZeta, rawPower, zetas)
+        powerMeans = np.mean(powers, axis=0)
+        powerStdevs = np.std(powers, ddof=1, axis=0)
+        powerNs = np.sum(powerNs, axis=0)
+        powerMeans /= np.max(np.nan_to_num(powerMeans))
 
         # Plot smoothed data and save as svg
-        if binSize:
-            plt.plot(zetas, powerSmoothed)
-        else:
-            plt.plot(zetas, powerSmoothed)
+        plt.plot(zetas, powerMeans)
         plt.xlabel('Zeta Potential [mV]')
         plt.ylabel('Relative Power')
         plt.title(expName)
@@ -320,7 +270,7 @@ def processFileGroup(
         # smoothed average power distribution, stdev, and N
         df = pd.DataFrame(np.vstack((
             zetas,
-            powerSmoothed,
+            powerMeans,
             powerStdevs,
             powerNs
             )).T)
@@ -339,7 +289,7 @@ def processFileGroup(
         # Fill out table of mode zeta values for each file group
         df = pd.DataFrame([
             expName,
-            np.mean(zetas[np.where(powerSmoothed == 1.0)[0]])
+            np.mean(zetas[np.where(powerMeans == 1.0)[0]])
             ]).T
         df.to_excel(writer,
                     sheet_name='Summary',
@@ -376,6 +326,32 @@ def processFileGroup(
                     )
         return nFiles, nBins
 
+def interpolate(xs: np.ndarray, ys: np.ndarray, zetas: np.ndarray):
+    nBins = len(zetas)
+    powers = np.empty(nBins, dtype=np.float64)
+    powerNs = np.empty(nBins, dtype=np.float64)
+    minRawZeta = np.min(xs)
+    maxRawZeta = np.max(xs)
+    for i, zeta in enumerate(zetas):
+        if zeta >= maxRawZeta:
+            powers[i] = ys[-1]
+            powerNs[i] = 0
+        elif zeta <= minRawZeta:
+            powers[i] = ys[0]
+            powerNs[i] = 0
+        else:
+            # Linear interpolation
+            xi = np.argmax(xs >= zeta)
+            powers[i] = (ys[xi] - ys[xi - 1]) \
+                / (xs[xi] - xs[xi - 1]) \
+                * (zeta - xs[xi - 1]) \
+                + ys[xi - 1]
+        powerNs[i] = np.count_nonzero(
+                (xs >= zeta - 0.5 * binSize) \
+                & (xs <= zeta + 0.5 * binSize)
+                )
+    return powers, powerNs
+
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         scriptdir = sys.argv[1].replace('\\','/')
@@ -392,7 +368,7 @@ if __name__ == "__main__":
     # Required globals
     # Font size on graphs
     fontsize = 20
-    # Set binSize in mV if rebinning is desired, 0 to disable rebinning
+    # Set binSize in mV
     binSize = 1
     # Set min and max zeta values to include in the exported file
     minZeta = -90
